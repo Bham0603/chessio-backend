@@ -8,9 +8,12 @@ import os
 import logging
 from typing import Final
 
-import google.generativeai as genai
+from dotenv import load_dotenv
+from google import genai
 
 from schemas import ChessEvaluationRequest, ExplanationResponse
+
+load_dotenv()
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -108,7 +111,7 @@ def generate_explanation(data: ChessEvaluationRequest) -> ExplanationResponse:
         An ExplanationResponse with a pedagogical explanation and a
         tactical-motif tag.
     """
-    api_key: str | None = os.getenv("GEMINI_API_KEY")
+    api_key: str | None = os.environ.get("GEMINI_API_KEY")
 
     if not api_key:
         logger.warning(
@@ -124,21 +127,24 @@ def generate_explanation(data: ChessEvaluationRequest) -> ExplanationResponse:
         )
 
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(
-            model_name=_MODEL_NAME,
-            system_instruction=_SYSTEM_PROMPT,
-        )
+        client = genai.Client(api_key=api_key)
 
         user_prompt: str = _build_user_prompt(data)
-        response = model.generate_content(user_prompt)
+        response = client.models.generate_content(
+            model=_MODEL_NAME,
+            contents=user_prompt,
+            config=genai.types.GenerateContentConfig(
+                system_instruction=_SYSTEM_PROMPT,
+            ),
+        )
         raw_text: str = response.text
 
         logger.info("Gemini response received (%d chars).", len(raw_text))
         return _parse_llm_response(raw_text)
 
-    except Exception as exc:
-        logger.error("Gemini API call failed: %s", exc, exc_info=True)
+    except Exception as e:
+        logger.error("Gemini API call failed: %s", e, exc_info=True)
+        print(f"LLM Error: {e}")
         return ExplanationResponse(
             explanation=(
                 f"[Fallback] Unable to reach the AI engine. The engine "

@@ -1,7 +1,7 @@
 """Pydantic schemas for the Cheesio XAI Chess Tutor API.
 
-Defines request and response models for chess position evaluation
-and natural-language explanation generation.
+Defines request and response models for chess position evaluation,
+natural-language explanation generation, and opening statistics.
 """
 
 from pydantic import BaseModel, Field
@@ -56,4 +56,80 @@ class ExplanationResponse(BaseModel):
     tactical_motif: str = Field(
         ...,
         description="Single tactical/strategic motif tag (e.g. 'Fork', 'Pin', 'Positional').",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 — Opening Statistics (Data Science Engine)
+# ---------------------------------------------------------------------------
+
+
+class OpeningMoveStat(BaseModel):
+    """Win-rate statistics for a single candidate continuation move.
+
+    Attributes:
+        san: The move in Standard Algebraic Notation (e.g. "e4", "Nf3").
+        total_games: Number of master games featuring this continuation.
+        white_win_pct: White's win percentage (0.0–100.0, 1 d.p.).
+        draw_pct: Draw percentage (0.0–100.0, 1 d.p.).
+        black_win_pct: Black's win percentage (0.0–100.0, 1 d.p.).
+    """
+
+    san: str = Field(
+        ...,
+        description="Move in Standard Algebraic Notation.",
+        examples=["e4"],
+    )
+    total_games: int = Field(
+        ...,
+        description="Total master games featuring this continuation.",
+        examples=[24356],
+    )
+    white_win_pct: float = Field(
+        ...,
+        description="White win percentage (0.0–100.0).",
+        examples=[38.2],
+    )
+    draw_pct: float = Field(
+        ...,
+        description="Draw percentage (0.0–100.0).",
+        examples=[35.1],
+    )
+    black_win_pct: float = Field(
+        ...,
+        description="Black win percentage (0.0–100.0).",
+        examples=[26.7],
+    )
+
+
+class OpeningStatsResponse(BaseModel):
+    """Aggregated opening statistics from the Lichess Masters database.
+
+    Attributes:
+        opening_name: Name of the opening (e.g. "Sicilian Defense"), or None
+                      if unrecognised.
+        eco_code: ECO classification code (e.g. "B20"), or None if unavailable.
+        total_master_games: Total number of master games for this position.
+        top_continuations: Per-move win/draw/loss breakdowns for the top
+                           candidate continuations.
+    """
+
+    opening_name: str | None = Field(
+        default=None,
+        description="Opening name (e.g. 'Sicilian Defense').",
+        examples=["Sicilian Defense"],
+    )
+    eco_code: str | None = Field(
+        default=None,
+        description="ECO classification code (e.g. 'B20').",
+        examples=["B20"],
+    )
+    total_master_games: int = Field(
+        ...,
+        description="Total master games evaluated for this position.",
+        examples=[87432],
+    )
+    top_continuations: list[OpeningMoveStat] = Field(
+        default_factory=list,
+        description="Win-rate statistics for the top candidate continuations.",
     )

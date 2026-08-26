@@ -81,7 +81,13 @@ async def explain_position(
         An ExplanationResponse containing the pedagogical explanation
         and the identified tactical motif.
     """
-    return generate_explanation(request)
+    result = generate_explanation(
+        fen=request.fen,
+        centipawn_score=request.centipawn_score,
+        best_move=request.best_move,
+        player_level=request.player_level,
+    )
+    return ExplanationResponse(**result)
 
 
 @app.post(

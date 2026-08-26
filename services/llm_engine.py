@@ -1,155 +1,57 @@
-"""LLM engine service for generating chess position explanations.
+import json
+import re
+import requests
 
-Uses the Gemini 1.5 Flash model to produce pedagogical explanations
-of chess positions, tailored to the student's skill level.
+OLLAMA_URL = "http://localhost:11434/api/generate"
+MODEL_NAME = "deepseek-r1:8b"
+
+def generate_explanation(fen: str, centipawn_score: int, best_move: str, player_level: str = "beginner") -> dict:
+    prompt = f"""
+You are an expert Chess Coach and Grandmaster.
+Analyze the following chess position and the recommended best move.
+
+Position FEN: {fen}
+Best Move: {best_move}
+Engine Evaluation: {centipawn_score}
+Target Audience: {player_level}
+
+Classify the tactical theme into EXACTLY ONE category from this list:
+["Pin", "Fork", "Skewer", "Discovered Attack", "Deflection", "Decoy", "Checkmate", "Back-Rank Mate", "Hanging Piece", "Positional"]
+
+Output ONLY a single raw JSON object in this exact schema without any markdown formatting:
+{{"explanation": "<2 concise sentences explaining the move>", "tactical_motif": "<One category from the list above>"}}
 """
 
-import os
-import logging
-from typing import Final
-
-from dotenv import load_dotenv
-from google import genai
-
-from schemas import ChessEvaluationRequest, ExplanationResponse
-
-load_dotenv()
-
-logger: logging.Logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Gemini configuration
-# ---------------------------------------------------------------------------
-
-_MODEL_NAME: Final[str] = "gemini-1.5-flash"
-
-_SYSTEM_PROMPT: Final[str] = """\
-You are a chess Grandmaster and world-class pedagogical coach.
-Your job is to explain a chess position to a student so they genuinely
-understand the ideas behind the engine's recommendation.
-
-You will receive:
-  • A FEN string describing the board.
-  • A centipawn evaluation (positive = White is better).
-  • The engine's best move in UCI notation.
-  • The student's level (beginner / intermediate / advanced).
-
-Guidelines:
-  1. Describe the position in plain language appropriate for the student's level.
-  2. Explain *why* the suggested move is strong — what tactical or strategic
-     idea does it serve? Mention concrete piece placements, threats, and
-     defensive weaknesses.
-  3. If the position contains a tactical motif (Pin, Fork, Skewer,
-     Discovered Attack, Deflection, Decoy, Zwischenzug, etc.), name it.
-     If the position is primarily strategic, use the tag "Positional".
-  4. Keep the explanation between 3 and 6 sentences.
-
-Output format (follow EXACTLY):
-EXPLANATION: <your explanation here>
-MOTIF: <single motif tag>
-
-Do NOT include any other text outside this format.\
-"""
-
-
-def _build_user_prompt(data: ChessEvaluationRequest) -> str:
-    """Build the user-turn prompt from the evaluation request.
-
-    Args:
-        data: The incoming chess evaluation request.
-
-    Returns:
-        A formatted prompt string containing the FEN, score, best move,
-        and player level.
-    """
-    return (
-        f"FEN: {data.fen}\n"
-        f"Centipawn Score: {data.centipawn_score}\n"
-        f"Best Move: {data.best_move}\n"
-        f"Student Level: {data.player_level}"
-    )
-
-
-def _parse_llm_response(raw_text: str) -> ExplanationResponse:
-    """Parse the structured LLM output into an ExplanationResponse.
-
-    Expects the format:
-        EXPLANATION: <text>
-        MOTIF: <tag>
-
-    Falls back to sensible defaults when the format is unexpected.
-
-    Args:
-        raw_text: The raw text returned by the Gemini model.
-
-    Returns:
-        A validated ExplanationResponse.
-    """
-    explanation: str = raw_text.strip()
-    motif: str = "Positional"
-
-    if "EXPLANATION:" in raw_text and "MOTIF:" in raw_text:
-        parts = raw_text.split("MOTIF:")
-        explanation = parts[0].replace("EXPLANATION:", "").strip()
-        motif = parts[1].strip()
-
-    return ExplanationResponse(explanation=explanation, tactical_motif=motif)
-
-
-def generate_explanation(data: ChessEvaluationRequest) -> ExplanationResponse:
-    """Generate a natural-language explanation for a chess position.
-
-    Calls the Gemini 1.5 Flash model with a Grandmaster-coach system
-    prompt. If the API key is missing or the call fails for any reason,
-    a mock response is returned so the server remains available.
-
-    Args:
-        data: A validated ChessEvaluationRequest containing the position,
-              evaluation, best move, and student level.
-
-    Returns:
-        An ExplanationResponse with a pedagogical explanation and a
-        tactical-motif tag.
-    """
-    api_key: str | None = os.environ.get("GEMINI_API_KEY")
-
-    if not api_key:
-        logger.warning(
-            "GEMINI_API_KEY is not set — returning mock explanation."
-        )
-        return ExplanationResponse(
-            explanation=(
-                f"[Mock] The position (FEN: {data.fen}) is evaluated at "
-                f"{data.centipawn_score} centipawns. The engine recommends "
-                f"{data.best_move}. Set GEMINI_API_KEY to get real analysis."
-            ),
-            tactical_motif="Positional",
-        )
+    payload = {
+        "model": MODEL_NAME,
+        "prompt": prompt,
+        "stream": False
+    }
 
     try:
-        client = genai.Client(api_key=api_key)
+        # High timeout required for reasoning models
+        res = requests.post(OLLAMA_URL, json=payload, timeout=120)
 
-        user_prompt: str = _build_user_prompt(data)
-        response = client.models.generate_content(
-            model=_MODEL_NAME,
-            contents=user_prompt,
-            config=genai.types.GenerateContentConfig(
-                system_instruction=_SYSTEM_PROMPT,
-            ),
-        )
-        raw_text: str = response.text
+        if res.status_code == 200:
+            raw_text = res.json().get("response", "").strip()
 
-        logger.info("Gemini response received (%d chars).", len(raw_text))
-        return _parse_llm_response(raw_text)
+            # Strip the DeepSeek <think> block
+            clean_text = re.sub(r'<think>.*?</think>', '', raw_text, flags=re.DOTALL).strip()
+
+            # Extract JSON block
+            match = re.search(r'\{.*\}', clean_text, re.DOTALL)
+            if match:
+                return json.loads(match.group(0))
+
+            return json.loads(clean_text)
+
+        else:
+            print(f"[Ollama Error] Status {res.status_code}: {res.text}")
 
     except Exception as e:
-        logger.error("Gemini API call failed: %s", e, exc_info=True)
-        print(f"LLM Error: {e}")
-        return ExplanationResponse(
-            explanation=(
-                f"[Fallback] Unable to reach the AI engine. The engine "
-                f"recommends {data.best_move} with a score of "
-                f"{data.centipawn_score} centipawns for FEN: {data.fen}."
-            ),
-            tactical_motif="Positional",
-        )
+        print(f"[LLM Engine Error]: {e}")
+
+    return {
+        "explanation": f"Stockfish suggests {best_move}. Look for tactical pressure.",
+        "tactical_motif": "Positional"
+    }

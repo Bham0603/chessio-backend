@@ -1,0 +1,82 @@
+[
+  {
+    "id": 1,
+    "description": "Knight fork on king and queen",
+    "fen": "r1bqkb1r/pppp1ppp/2n5/4N3/4n3/8/PPPP1PPP/RNBQKB1R w KQkq - 0 5",
+    "centipawn_score": 350,
+    "best_move": "Nxc6",
+    "ground_truth_motif": "Fork"
+  },
+  {
+    "id": 2,
+    "description": "Absolute pin on d-file against queen",
+    "fen": "r1b1k2r/pppp1ppp/2n5/4p3/1b2P3/2NP1N2/PPP1BPPP/R2QK2R w KQkq - 0 8",
+    "centipawn_score": 120,
+    "best_move": "O-O",
+    "ground_truth_motif": "Pin"
+  },
+  {
+    "id": 3,
+    "description": "Skewer on king and rook along diagonal",
+    "fen": "8/8/4k3/8/8/8/1B6/3R2K1 w - - 0 1",
+    "centipawn_score": 500,
+    "best_move": "Re1+",
+    "ground_truth_motif": "Skewer"
+  },
+  {
+    "id": 4,
+    "description": "Discovered attack on queen by bishop move",
+    "fen": "r1bqk2r/pppp1ppp/2n2n2/8/1bB1P3/2N2N2/PB3PPP/R2QK2R w KQkq - 3 8",
+    "centipawn_score": 200,
+    "best_move": "O-O",
+    "ground_truth_motif": "Discovered Attack"
+  },
+  {
+    "id": 5,
+    "description": "Deflection tactic pulling defender from back rank",
+    "fen": "3r2k1/5ppp/8/8/8/8/1Q3PPP/6K1 w - - 0 1",
+    "centipawn_score": 900,
+    "best_move": "Qb8",
+    "ground_truth_motif": "Deflection"
+  },
+  {
+    "id": 6,
+    "description": "Back-rank checkmate pattern",
+    "fen": "6k1/5ppp/8/8/8/8/8/3R2K1 w - - 0 1",
+    "centipawn_score": 10000,
+    "best_move": "Rd8#",
+    "ground_truth_motif": "Back-Rank Mate"
+  },
+  {
+    "id": 7,
+    "description": "Decoy drawing king into check",
+    "fen": "r1b2rk1/pp3ppp/8/8/8/2B5/PPP2PPP/R4RK1 w - - 0 16",
+    "centipawn_score": 150,
+    "best_move": "Rfe1",
+    "ground_truth_motif": "Decoy"
+  },
+  {
+    "id": 8,
+    "description": "Hanging undefended piece capture",
+    "fen": "r1bqkbnr/pppp1ppp/2n5/8/4p3/5N2/PPPPPPPP/RNBQKB1R w KQkq - 0 4",
+    "centipawn_score": 300,
+    "best_move": "Ng1",
+    "ground_truth_motif": "Hanging Piece"
+  },
+  {
+    "id": 9,
+    "description": "Classic smothered or direct checkmate",
+    "fen": "r1bqkb1r/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 2 4",
+    "centipawn_score": 10000,
+    "best_move": "Qxf7#",
+    "ground_truth_motif": "Checkmate"
+  },
+  {
+    "id": 10,
+    "description": "Positional pawn structure consolidation",
+    "fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+    "centipawn_score": 15,
+    "best_move": "e5",
+    "ground_truth_motif": "Positional"
+  }
+]
